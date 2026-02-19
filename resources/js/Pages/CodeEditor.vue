@@ -1,36 +1,28 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Head } from '@inertiajs/vue3';
 
-// Monaco Editor imports
-import * as monaco from 'monaco-editor';
+// Monaco Editor imports (Vite + workers)
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
+import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
+import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
+import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 
-// Configure Monaco workers
+// Configure Monaco to use Vite-bundled workers (prevents "Could not create web worker(s)")
 self.MonacoEnvironment = {
-    getWorker(_, label) {
-        const getWorkerModule = (url, options) => {
-            return new Worker(url, { type: 'module', ...options });
-        };
-        if (label === 'css' || label === 'scss' || label === 'less') {
-            return getWorkerModule(
-                new URL('monaco-editor/esm/vs/language/css/css.worker.js', import.meta.url)
-            );
-        }
-        if (label === 'html' || label === 'handlebars' || label === 'razor') {
-            return getWorkerModule(
-                new URL('monaco-editor/esm/vs/language/html/html.worker.js', import.meta.url)
-            );
-        }
-        if (label === 'javascript' || label === 'typescript') {
-            return getWorkerModule(
-                new URL('monaco-editor/esm/vs/language/typescript/ts.worker.js', import.meta.url)
-            );
-        }
-        return getWorkerModule(
-            new URL('monaco-editor/esm/vs/editor/editor.worker.js', import.meta.url)
-        );
+    getWorker(_workerId, label) {
+        if (label === 'json') return new JsonWorker();
+        if (label === 'css' || label === 'scss' || label === 'less') return new CssWorker();
+        if (label === 'html' || label === 'handlebars' || label === 'razor') return new HtmlWorker();
+        if (label === 'typescript' || label === 'javascript') return new TsWorker();
+        return new EditorWorker();
     },
 };
+
+// Local storage key
+const STORAGE_KEY = 'code-editor-state-v1';
 
 // Reactive state
 const activeTab = ref('html');
@@ -50,6 +42,35 @@ let cssEditor = null;
 let jsEditor = null;
 let currentEditor = null;
 let debounceTimer = null;
+
+// Persist and restore state
+const loadState = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+};
+
+const saveState = () => {
+    if (typeof window === 'undefined') return;
+    try {
+        const payload = {
+            html: htmlEditor?.getValue() || '',
+            css: cssEditor?.getValue() || '',
+            js: jsEditor?.getValue() || '',
+            fontSize: fontSize.value,
+            wordWrap: wordWrap.value,
+            layout: layout.value,
+        };
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+        // ignore persistence errors
+    }
+};
 
 // Default code templates
 const defaultHTML = `<!DOCTYPE html>
@@ -265,6 +286,19 @@ const getEditorOptions = (language) => ({
 
 // Initialize editors
 const initEditors = () => {
+    const restored = loadState();
+    if (restored) {
+        if (restored.fontSize) {
+            fontSize.value = restored.fontSize;
+        }
+        if (restored.wordWrap) {
+            wordWrap.value = restored.wordWrap;
+        }
+        if (restored.layout) {
+            layout.value = restored.layout === 'vertical' ? 'vertical' : 'horizontal';
+        }
+    }
+
     defineEditorTheme();
 
     const container = editorContainerRef.value;
@@ -288,17 +322,17 @@ const initEditors = () => {
 
     htmlEditor = monaco.editor.create(htmlDiv, {
         ...getEditorOptions('html'),
-        value: defaultHTML,
+        value: restored?.html || defaultHTML,
     });
 
     cssEditor = monaco.editor.create(cssDiv, {
         ...getEditorOptions('css'),
-        value: defaultCSS,
+        value: restored?.css || defaultCSS,
     });
 
     jsEditor = monaco.editor.create(jsDiv, {
         ...getEditorOptions('javascript'),
-        value: defaultJS,
+        value: restored?.js || defaultJS,
     });
 
     currentEditor = htmlEditor;
@@ -339,7 +373,10 @@ const switchTab = (tabId) => {
 // Debounced preview update (500ms)
 const debouncedUpdatePreview = () => {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(updatePreview, 500);
+    debounceTimer = setTimeout(() => {
+        updatePreview();
+        saveState();
+    }, 500);
 };
 
 // Update the live preview
@@ -453,6 +490,7 @@ const toggleLayout = () => {
         cssEditor?.layout();
         jsEditor?.layout();
     });
+    saveState();
 };
 
 // Clear console
@@ -467,24 +505,28 @@ const resetEditors = () => {
     jsEditor?.setValue(defaultJS);
     consoleLogs.value = [];
     updatePreview();
+    saveState();
 };
 
 // Increase font size
 const increaseFontSize = () => {
     fontSize.value = Math.min(fontSize.value + 1, 24);
     [htmlEditor, cssEditor, jsEditor].forEach(e => e?.updateOptions({ fontSize: fontSize.value }));
+    saveState();
 };
 
 // Decrease font size
 const decreaseFontSize = () => {
     fontSize.value = Math.max(fontSize.value - 1, 10);
     [htmlEditor, cssEditor, jsEditor].forEach(e => e?.updateOptions({ fontSize: fontSize.value }));
+    saveState();
 };
 
 // Toggle word wrap
 const toggleWordWrap = () => {
     wordWrap.value = wordWrap.value === 'off' ? 'on' : 'off';
     [htmlEditor, cssEditor, jsEditor].forEach(e => e?.updateOptions({ wordWrap: wordWrap.value }));
+    saveState();
 };
 
 // Download code as HTML file
