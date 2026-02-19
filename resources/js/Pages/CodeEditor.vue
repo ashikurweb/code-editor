@@ -217,16 +217,48 @@ const defineEditorTheme = () => {
         base: 'vs-dark',
         inherit: true,
         rules: [
+            // Comments - gray italic
             { token: 'comment', foreground: '6a737d', fontStyle: 'italic' },
+            { token: 'comment.js', foreground: '6a737d', fontStyle: 'italic' },
+            { token: 'comment.ts', foreground: '6a737d', fontStyle: 'italic' },
+            { token: 'comment.html', foreground: '6a737d', fontStyle: 'italic' },
+
+            // Keywords - purple
             { token: 'keyword', foreground: 'c792ea' },
+
+            // Strings - green
             { token: 'string', foreground: 'c3e88d' },
+            { token: 'string.html', foreground: 'c3e88d' },
+
+            // Numbers - orange
             { token: 'number', foreground: 'f78c6c' },
-            { token: 'tag', foreground: 'f07178' },
-            { token: 'attribute.name', foreground: 'ffcb6b' },
+
+            // HTML specific tokens
+            { token: 'tag', foreground: 'f07178', fontStyle: 'bold' },
+            { token: 'tag.html', foreground: 'f07178', fontStyle: 'bold' },
+            { token: 'delimiter.html', foreground: 'f07178' },
+            { token: 'attribute.name', foreground: 'ffcb6b', fontStyle: 'italic' },
+            { token: 'attribute.name.html', foreground: 'ffcb6b', fontStyle: 'italic' },
             { token: 'attribute.value', foreground: 'c3e88d' },
-            { token: 'delimiter', foreground: '89ddff' },
+            { token: 'attribute.value.html', foreground: 'c3e88d' },
+            { token: 'metatag.html', foreground: 'f07178', fontStyle: 'bold' },
+            { token: 'metatag.content.html', foreground: 'c3e88d' },
+
+            // CSS specific tokens
+            { token: 'attribute.name.css', foreground: 'ffcb6b' },
+            { token: 'attribute.value.css', foreground: 'c3e88d' },
+            { token: 'property.css', foreground: '82aaff' },
+            { token: 'value.css', foreground: 'c3e88d' },
+
+            // JavaScript specific tokens
+            { token: 'identifier', foreground: 'eeffff' },
             { token: 'type', foreground: '82aaff' },
             { token: 'variable', foreground: 'eeffff' },
+            { token: 'function', foreground: '82aaff' },
+            { token: 'function.call', foreground: '82aaff' },
+
+            // Operators and delimiters
+            { token: 'delimiter', foreground: '89ddff' },
             { token: 'operator', foreground: '89ddff' },
         ],
         colors: {
